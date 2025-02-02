@@ -1,5 +1,8 @@
-from os import getenv
+import os
 
 from dotenv import load_dotenv
 
-api_key = getenv("API_KEY")
+api_key = os.getenv("API_KEY")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-very-secret-key")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_TIME = 3600

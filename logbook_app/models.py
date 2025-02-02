@@ -1,9 +1,11 @@
 from datetime import datetime as dt
 
+from django.contrib.auth.models import User
 from django.db import models
 
 
 class Log(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     date = models.DateField(default=dt.today())
     details = models.CharField(max_length=255)

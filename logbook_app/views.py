@@ -1,10 +1,12 @@
+from asgiref.sync import sync_to_async
+from django.contrib.auth.models import User
 from django.forms.models import model_to_dict
 from django.http.response import JsonResponse
 from ninja import NinjaAPI
 
 from .models import Log
 from .parser import ORJSONParser
-from .schema import LogbookIn
+from .schema import LogbookIn, UserIn
 
 api = NinjaAPI(version="1.0.0", parser=ORJSONParser())
 
@@ -66,4 +68,14 @@ async def delete_logbook(request, logbook_id: int):
         res = {"status": 200, "message": "logbook deleted."}
     except:
         res = {"status": 400, "message": "logbook not found."}
+    return JsonResponse(res)
+
+
+@api.post("/user")
+async def create_user(request, payload: UserIn):
+    try:
+        await sync_to_async(User.objects.create_user)(**payload.dict())
+        res = {"status": 200, "message": f"user created."}
+    except:
+        res = {"status": 400, "message": "invalid data."}
     return JsonResponse(res)
