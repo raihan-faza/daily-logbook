@@ -1,0 +1,76 @@
+import asyncio
+import os
+
+import openai
+from annoy import AnnoyIndex
+
+from .models import Log
+from .utils import api_key
+
+openai.api_key = api_key
+INDEX_FILE = "annoy_index.ann"
+VECTOR_DIM = 1536  # OpenAI's text-embedding-ada-002 dimension
+NUM_TREES = 10
+
+
+# maybe i should add user_id
+async def fetch_data():
+    data = [data async for data in Log.objects.all()]
+    return [f"{obj.title}: {obj.details}: {obj.date}" for obj in data]
+
+
+# idontknowwhatthisisallabout from here till line 81
+async def get_embedding(text):
+    return await asyncio.to_thread(
+        lambda: openai.embeddings.create(model="text-embedding-ada-002", input=text)
+        .data[0]
+        .embedding
+    )
+
+
+async def build_annoy_index():
+    data = await fetch_data()
+    embeddings = await asyncio.gather(*[get_embedding(text) for text in data])
+
+    annoy_index = AnnoyIndex(VECTOR_DIM, "angular")
+    for i, embedding in enumerate(embeddings):
+        annoy_index.add_item(i, embedding)
+
+    annoy_index.build(NUM_TREES)
+    annoy_index.save(INDEX_FILE)
+
+    return data, annoy_index
+
+
+async def retrieve_relevant_docs(query, top_k=3):
+    annoy_index = AnnoyIndex(VECTOR_DIM, "angular")
+    if os.path.exists(INDEX_FILE):
+        annoy_index.load(INDEX_FILE)
+    else:
+        raise FileNotFoundError("Annoy index not found! Build the index first.")
+
+    query_embedding = await get_embedding(query)
+    nearest_indices = annoy_index.get_nns_by_vector(query_embedding, top_k)
+
+    data = await fetch_data()
+    return [data[i] for i in nearest_indices]
+
+
+async def generate_rag_response(query):
+    retrieved_docs = await retrieve_relevant_docs(query)
+    context = "\n".join(retrieved_docs)
+
+    response = await asyncio.to_thread(
+        lambda: openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an AI assistant answering questions based on the retrieved knowledge.",
+                },
+                {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"},
+            ],
+        )
+    )
+
+    return response.choices[0].message.content
