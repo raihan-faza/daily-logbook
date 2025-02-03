@@ -4,6 +4,7 @@ from django.forms.models import model_to_dict
 from django.http.response import JsonResponse
 from ninja import NinjaAPI
 
+from .auth import generate_jwt_token
 from .models import Log
 from .parser import ORJSONParser
 from .schema import LogbookIn, UserIn
@@ -78,4 +79,18 @@ async def create_user(request, payload: UserIn):
         res = {"status": 200, "message": f"user created."}
     except:
         res = {"status": 400, "message": "invalid data."}
+    return JsonResponse(res)
+
+
+@api.post("/token")
+async def login(request, payload: UserIn):
+    res = {"status": 400, "message": "invalid user."}
+    try:
+        user = await User.objects.aget(**payload.dict())
+        if not user.is_authenticated:
+            return JsonResponse(res)
+        token = await generate_jwt_token(user=user)
+        res = {"status": 200, "token": token}
+    except:
+        pass
     return JsonResponse(res)
