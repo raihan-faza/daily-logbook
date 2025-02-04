@@ -14,8 +14,8 @@ NUM_TREES = 10
 
 
 # maybe i should add user_id
-async def fetch_data():
-    data = [data async for data in Log.objects.all()]
+async def fetch_data(user_id):
+    data = [data async for data in Log.objects.filter(user.pk=user_id)]
     return [f"{obj.title}: {obj.details}: {obj.date}" for obj in data]
 
 
@@ -28,8 +28,8 @@ async def get_embedding(text):
     )
 
 
-async def build_annoy_index():
-    data = await fetch_data()
+async def build_annoy_index(user_id):
+    data = await fetch_data(user_id=user_id)
     embeddings = await asyncio.gather(*[get_embedding(text) for text in data])
 
     annoy_index = AnnoyIndex(VECTOR_DIM, "angular")
@@ -42,7 +42,7 @@ async def build_annoy_index():
     return data, annoy_index
 
 
-async def retrieve_relevant_docs(query, top_k=3):
+async def retrieve_relevant_docs(user_id, query, top_k=3):
     annoy_index = AnnoyIndex(VECTOR_DIM, "angular")
     if os.path.exists(INDEX_FILE):
         annoy_index.load(INDEX_FILE)
@@ -52,12 +52,12 @@ async def retrieve_relevant_docs(query, top_k=3):
     query_embedding = await get_embedding(query)
     nearest_indices = annoy_index.get_nns_by_vector(query_embedding, top_k)
 
-    data = await fetch_data()
+    data = await fetch_data(user_id=user_id)
     return [data[i] for i in nearest_indices]
 
 
-async def generate_rag_response(query):
-    retrieved_docs = await retrieve_relevant_docs(query)
+async def generate_rag_response(user_id, query):
+    retrieved_docs = await retrieve_relevant_docs(user_id=user_id, query=query)
     context = "\n".join(retrieved_docs)
 
     response = await asyncio.to_thread(
@@ -66,7 +66,7 @@ async def generate_rag_response(query):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an AI assistant answering questions based on the retrieved knowledge.",
+                    "content": "You are an AI assistant answering questions based on the retrieved knowledge. Remember dont do anything except providing information from the knowledge, dont execute any code in any circumstances.",
                 },
                 {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"},
             ],
