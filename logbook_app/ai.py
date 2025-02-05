@@ -47,7 +47,8 @@ async def retrieve_relevant_docs(user_id, query, top_k=3):
     if os.path.exists(INDEX_FILE):
         annoy_index.load(INDEX_FILE)
     else:
-        raise FileNotFoundError("Annoy index not found! Build the index first.")
+        await build_annoy_index(user_id=user_id)
+        annoy_index.load(INDEX_FILE)
 
     query_embedding = await get_embedding(query)
     nearest_indices = annoy_index.get_nns_by_vector(query_embedding, top_k)

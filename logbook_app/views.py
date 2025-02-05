@@ -97,3 +97,13 @@ async def login(request, payload: UserIn):
     except:
         res = {"status": 400, "message": "invalid user."}
     return JsonResponse(res)
+
+
+@api.post("/ai/generate")
+async def generate_logbook_with_ai():
+    return
+
+
+@api.post("/ai/ask")
+async def ask_question_to_ai():
+    return
