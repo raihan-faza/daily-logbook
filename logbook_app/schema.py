@@ -9,3 +9,7 @@ class LogbookIn(Schema):
 class UserIn(Schema):
     username: str
     password: str
+
+
+class AiGenIn(Schema):
+    query: str
