@@ -66,7 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
         children: [
           // Centered Category Bubbles
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
             child: SizedBox(
               height: 50,
               child: Center(
@@ -104,10 +104,63 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
 
-          // Main Page Content
+          // Main Page Content (Scrollable Tiny Grid)
           Expanded(
             child: Center(
-              child: _pages[_selectedIndex],
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(60),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics:
+                        const NeverScrollableScrollPhysics(), // Disable internal scroll
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2, // 2 columns
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.5, // Smaller box
+                    ),
+                    itemCount: 10, // Increased for better scrolling
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () {
+                          // Handle box tap
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.brown.shade300,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(2, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.note,
+                                  size: 24, color: Colors.brown.shade200),
+                              SizedBox(height: 5),
+                              Text(
+                                'Note ${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
         ],
