@@ -1,3 +1,4 @@
+import jwt
 from asgiref.sync import sync_to_async
 from django.contrib.auth import aauthenticate
 from django.contrib.auth.models import User
@@ -9,6 +10,12 @@ from .auth import JWTAuth, generate_jwt_token
 from .models import Log
 from .parser import ORJSONParser
 from .schema import LogbookIn, UserIn
+from .utils import (
+    JWT_ALGORITHM,
+    JWT_EXPIRATION_TIME,
+    JWT_REFRESH_EXPIRATION,
+    JWT_SECRET_KEY,
+)
 
 api = NinjaAPI(version="1.0.0", parser=ORJSONParser())
 
@@ -86,17 +93,46 @@ async def create_user(request, payload: UserIn):
     return JsonResponse(res)
 
 
-@api.post("/token")
-async def login(request, payload: UserIn):
+@api.post("/login", response=TokenResponse)
+async def login(request, data: TokenRequest):
+    # Check user authentication
     try:
-        user = await aauthenticate(username=payload.username, password=payload.password)
-        if user is None:
-            raise
-        token = await generate_jwt_token(user=user)
-        res = {"status": 200, "token": token}
-    except:
-        res = {"status": 400, "message": "invalid user."}
-    return JsonResponse(res)
+        user = User.objects.get(username=data.username)
+        if not user.check_password(data.password):
+            return api.create_response(
+                request, {"error": "Invalid credentials"}, status=401
+            )
+    except User.DoesNotExist:
+        return api.create_response(request, {"error": "User not found"}, status=401)
+
+    access_token = await generate_jwt_token(user)
+
+    refresh_token = await generate_jwt_token(user)
+
+    return {"access_token": access_token, "refresh_token": refresh_token}
+
+
+# Refresh Token API
+@api.post("/refresh", response=TokenResponse)
+async def refresh_token(request, data: RefreshRequest):
+    try:
+        payload = jwt.decode(
+            data.refresh_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM]
+        )
+        user = User.objects.get(pk=payload["sub"])
+
+        new_access_token = await generate_jwt_token(user)
+        return {"access_token": new_access_token, "refresh_token": data.refresh_token}
+    except jwt.ExpiredSignatureError:
+        return api.create_response(
+            request, {"error": "Refresh token expired"}, status=401
+        )
+    except jwt.InvalidTokenError:
+        return api.create_response(
+            request, {"error": "Invalid refresh token"}, status=401
+        )
+    except User.DoesNotExist:
+        return api.create_response(request, {"error": "User not found"}, status=401)
 
 
 @api.post("/ai/generate")
